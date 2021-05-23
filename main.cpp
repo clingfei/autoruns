@@ -17,6 +17,8 @@ void startup();
 vector<string> getFiles(string path);
 void queryRegKey();
 void QueryKey(HKEY hKey);
+string getEnvVar(string path);
+string subVarWithPath(string path);
 
 vector<string> keys;
 int main() {
@@ -32,23 +34,22 @@ int main() {
 }
 
 void startup() {
-    DWORD dwRet;
-    LPTSTR pszOldVal;
-    pszOldVal = (LPTSTR)malloc(BUFSIZE * sizeof(TCHAR));
-    dwRet = GetEnvironmentVariable("USERPROFILE", pszOldVal, BUFSIZE);
-    strcat(pszOldVal, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
+    LPTSTR sysVar;
+    sysVar = (LPTSTR)malloc(BUFSIZE * sizeof(TCHAR));
+    GetEnvironmentVariable("USERPROFILE", sysVar, BUFSIZE);
+    strcat(sysVar, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
 
-    vector<string> files = getFiles(pszOldVal);
+    vector<string> files = getFiles(sysVar);
     cout << "User Startup:\n";
 
     for (int i=0; i<files.size();i++) {
         cout << files[i] << endl;
     }
 
-    pszOldVal = (LPSTR)malloc(BUFSIZE * sizeof(TCHAR));
-    dwRet = GetEnvironmentVariable("ProgramData", pszOldVal, BUFSIZE);
-    strcat(pszOldVal, "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
-    files = getFiles(pszOldVal);
+    sysVar = (LPSTR)malloc(BUFSIZE * sizeof(TCHAR));
+    GetEnvironmentVariable("ProgramData", sysVar, BUFSIZE);
+    strcat(sysVar, "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
+    files = getFiles(sysVar);
     cout << "ProgramStartup:\n";
 
     for (int i=0; i<files.size();i++) {
@@ -76,7 +77,6 @@ vector<string> getFiles(string path) {
 }
 
 void queryRegKey() {
-    cout << "jinru";
     HKEY hKey;
     cout << "CurrentUser: " << endl;
     for (int i=0; i<keys.size(); i++) {
@@ -91,7 +91,7 @@ void queryRegKey() {
             RegCloseKey(hKey);
         }
     }
-    cout << "Local Machine:" << endl;
+    cout << "\nLocal Machine:" << endl;
     for (int i=0; i<keys.size(); i++) {
         cout << "subkeys:" << keys[i] << endl;
         if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T(keys[i].c_str()), 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
@@ -174,19 +174,56 @@ void QueryKey(HKEY hKey) {
             if (retCode == ERROR_SUCCESS) {
                 unsigned long j;
 
-                cout << "name:" << achValue << endl;
+                cout << "key:" << achValue << endl;
 
                 string image_path = "";
 
                 for (j = 0; j<cchData; j++) {
                     image_path = image_path + (char)achData[j];
                 }
-                cout << image_path << endl;
-
+                image_path = subVarWithPath(image_path);
+                cout << "value: " << image_path << endl;
+                cout << endl;
             }
         }
-
-
     }
 
+}
+
+string subVarWithPath(string path) {
+    int n = 0;
+    if ((n = path.find("%ProgramFiles%")) != string::npos) {
+        string var = getEnvVar("ProgramFiles");
+        path = path.substr(14).insert(0, var);
+    }
+    if ((n = path.find("%PROGRAMFILES%")) != string::npos) {
+        string var = getEnvVar("PROGRAMFILES");
+        path = path.substr(14).insert(0, var);
+    }
+    if ((n = path.find("%windir%")) != string::npos) {
+        string var = getEnvVar("windir");
+        path = path.substr(8).insert(0, var);
+    }
+    if ((n = path.find("%SystemRoot%")) != string::npos) {
+        string var = getEnvVar("SystemRoot");
+        path = path.substr(12).insert(0, var);
+    }
+    if ((n = path.find("%USERPROFILE%")) != string::npos) {
+        string var = getEnvVar("USERPROFILE");
+        path = path.substr(13).insert(0, var);
+    }
+    if ((n = path.find("%ProgramData%")) != string::npos) {
+        string var = getEnvVar("ProgramData");
+        path = path.substr(13).insert(0, var);
+    }
+    if ((n = path.find("\\")) == string::npos)
+        path = path.insert(0, "C:\\Windows\\System32\\");
+    return path;
+}
+
+string getEnvVar(string path) {
+    LPTSTR sysVar;
+    sysVar = (LPTSTR)malloc(BUFSIZE * sizeof(TCHAR));
+    GetEnvironmentVariable(path.c_str(), sysVar, BUFSIZE);
+    return sysVar;
 }
