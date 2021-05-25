@@ -76,23 +76,25 @@ DWORD getType(HKEY rootKey, LPCSTR subKey) {
 
 LPBYTE getObjectName(HKEY rootKey, LPCSTR subKey) {	
 	HKEY hKey;
-	DWORD dwValue = 1024;
-	DWORD lpType = 0;
+	DWORD lpcbData = 1024;
+	DWORD lpType = REG_SZ;
 	LPBYTE ObjectName = NULL;
 	unsigned long retCode;
 
 	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (retCode == ERROR_SUCCESS) {
 		//RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &dwValue);
-		ObjectName = (LPBYTE)malloc(dwValue); 
-		retCode = RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &dwValue);
+		ObjectName = (LPBYTE)malloc(lpcbData); 
+		retCode = RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &lpcbData);
 		if (retCode == ERROR_SUCCESS) {
-			cout << "ObjectName: " << ObjectName << endl;
+			//cout << "ObjectName: " << ObjectName << endl;
 			RegCloseKey(hKey);
 		}
-		
+		else {
+			CString str = "NULL";
+			ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
+		}
 	}
-	
 	return ObjectName;
 }
 
@@ -102,12 +104,21 @@ LPBYTE getDescription(HKEY rootKey, LPCSTR subKey) {
 	DWORD lpType = REG_SZ;
 	LPBYTE Description = NULL;
 	unsigned long retCode;
+
 	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (retCode == ERROR_SUCCESS) {
-		Description = (LPBYTE)malloc(lpcbData);
+		//RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &dwValue);
+		Description = (LPBYTE)malloc(lpcbData); 
 		retCode = RegQueryValueEx(hKey, "Description", 0, &lpType, Description, &lpcbData);
+		if (retCode == ERROR_SUCCESS) {
+			//cout << "Description: " << Description << endl;
+			RegCloseKey(hKey);
+		}
+		else {
+			CString str = "NULL";
+			Description = (LPBYTE)str.GetBuffer(str.GetLength());
+		}
 	}
-	RegCloseKey(hKey);
 	return Description;
 }
 
@@ -115,30 +126,46 @@ LPBYTE getImagePath(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
 	DWORD lpType = REG_EXPAND_SZ;
-	LPBYTE imagePath = NULL;
+	LPBYTE ImagePath = NULL;
 	unsigned long retCode;
 
 	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (retCode == ERROR_SUCCESS) {
-		imagePath = (LPBYTE)malloc(lpcbData);
-		retCode = RegQueryValueEx(hKey, "ImagePath", 0, &lpType, imagePath, &lpcbData);
+		//RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &dwValue);
+		ImagePath = (LPBYTE)malloc(lpcbData); 
+		retCode = RegQueryValueEx(hKey, "ImagePath", 0, &lpType, ImagePath, &lpcbData);
+		if (retCode == ERROR_SUCCESS) {
+			//cout << "ImagePath: " << ImagePath << endl;
+			RegCloseKey(hKey);
+		}
+		else {
+			CString str = "NULL";
+			ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
+		}
 	}
-	RegCloseKey(hKey);
-	return imagePath;
+	return ImagePath;
 }
 
 LPBYTE getDisplayName(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
 	DWORD lpType = REG_SZ;
-	LPBYTE displayName = NULL;
+	LPBYTE DisplayName = NULL;
 	unsigned long retCode;
 
 	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (retCode == ERROR_SUCCESS) {
-		displayName = (LPBYTE)malloc(lpcbData);
-		retCode = RegQueryValueEx(hKey, "DisplayName", 0, &lpType, displayName, &lpcbData);
+		//RegQueryValueEx(hKey, "ObjectName", 0, &lpType, ObjectName, &dwValue);
+		DisplayName = (LPBYTE)malloc(lpcbData); 
+		retCode = RegQueryValueEx(hKey, "DisplayName", 0, &lpType, DisplayName, &lpcbData);
+		if (retCode == ERROR_SUCCESS) {
+			//cout << "ImagePath: " << ImagePath << endl;
+			RegCloseKey(hKey);
+		}
+		else {
+			CString str = "NULL";
+			DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());
+		}
 	}
-	RegCloseKey(hKey);
-	return displayName;
+	return DisplayName;
 }

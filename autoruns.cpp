@@ -199,16 +199,17 @@ void service(){
 		// type<=8 is driver, Service otherwise. 
 		if ( type > 8 ) {
 			ObjectName = getObjectName(rootKey, itemKey.c_str());
-			//Description = getDescription(rootKey, itemKey.c_str());
-			//ImagePath = getImagePath(rootKey, itemKey.c_str());
-			//DisplayName = getDisplayName(rootKey, itemKey.c_str());
-			//CString str = "NULL";
+			Description = getDescription(rootKey, itemKey.c_str());
+			ImagePath = getImagePath(rootKey, itemKey.c_str());
+			DisplayName = getDisplayName(rootKey, itemKey.c_str());
+			CString str = "NULL";
 		
-			//if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
-			//if (Description == NULL) Description = (LPBYTE)str.GetBuffer(str.GetLength());
-			//if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
-			//if (DisplayName == NULL) DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());	
-			//cout << "ObjectName: \t" << ObjectName << "Description: \t" << Description << "ImagePath: \t" << ImagePath << "DisplayNmae: \t" << DisplayName << endl;  
+			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
+			if (Description == NULL) Description = (LPBYTE)str.GetBuffer(str.GetLength());
+			if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
+			if (DisplayName == NULL) DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
+			//cout << "ObjectName: " << ObjectName << " Desciption: " << Description << endl;
 		}
 	}
 
