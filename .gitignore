@@ -1,6 +1,7 @@
 /.idea/
 /cmake-build-debug/
 CMakeLists.txt
+targetver.h
 
 # Prerequisites
 *.d

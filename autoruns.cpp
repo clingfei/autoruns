@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdio.h>
 #include <typeinfo.h>
+#include <atlstr.h>
 
 #include "logon.h"
 #include "startup.h"
@@ -178,13 +179,38 @@ void QueryKey(HKEY hKey) {
 
 
 void service(){
-	HKEY rootkey = HKEY_LOCAL_MACHINE;
+	HKEY rootKey = HKEY_LOCAL_MACHINE;
 	LPCSTR subKey  = "SYSTEM\\CurrentControlSet\\Services";
 	HKEY hKey;
-	if (ERROR_SUCCESS == RegOpenKeyEx(rootkey, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)){
-		getItem(hKey);
+	string itemKey;
+	vector<string> items;
+	if (ERROR_SUCCESS == RegOpenKeyEx(rootKey, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)){
+		items = getItem(hKey);
 	} else {
 		cout  << "RegOpenKeyEx Error!" << endl;
 	}
+	for (int i=0; i<50; ++i) {
+		//cout << "value: " << items[i] << endl; 
+		itemKey = "SYSTEM\\CurrentControlSet\\services\\" + items[i];
+		DWORD type = getType(rootKey, itemKey.c_str());
+		
+		LPBYTE ObjectName, ImagePath, Description, DisplayName;
+
+		// type<=8 is driver, Service otherwise. 
+		if ( type > 8 ) {
+			ObjectName = getObjectName(rootKey, itemKey.c_str());
+			//Description = getDescription(rootKey, itemKey.c_str());
+			//ImagePath = getImagePath(rootKey, itemKey.c_str());
+			//DisplayName = getDisplayName(rootKey, itemKey.c_str());
+			//CString str = "NULL";
+		
+			//if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
+			//if (Description == NULL) Description = (LPBYTE)str.GetBuffer(str.GetLength());
+			//if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
+			//if (DisplayName == NULL) DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			//cout << "ObjectName: \t" << ObjectName << "Description: \t" << Description << "ImagePath: \t" << ImagePath << "DisplayNmae: \t" << DisplayName << endl;  
+		}
+	}
+
 }
 
