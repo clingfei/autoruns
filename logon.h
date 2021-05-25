@@ -26,11 +26,11 @@ string subVarWithPath(string path) {
 		string var = getEnvVar("windir");
 		path = path.substr(8).insert(0, var);
 	}
-    if ((n = path.find("%SystemRoot%")) != string::npos) {
+    if ((n = path.find("\%SystemRoot%")) != string::npos) {
 		string var = getEnvVar("SystemRoot");
 		path = path.substr(12).insert(0, var);
 	}
-    if ((n = path.find("%USERPROFILE%")) != string::npos) {
+    if ((n = path.find("\%USERPROFILE%")) != string::npos) {
 		string var = getEnvVar("USERPROFILE");
 		path = path.substr(13).insert(0, var);
 	}

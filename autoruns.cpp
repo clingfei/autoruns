@@ -31,8 +31,8 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
 
-    //startup();
-    //logon();
+    startup();
+    logon();
 	service();
 	system("pause");
     
