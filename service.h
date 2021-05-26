@@ -6,6 +6,51 @@ using namespace std;
 
 #define MAX_VALUE_NAME 16383
 
+
+string getSysVar(string path) {
+    LPTSTR sysVar;
+    sysVar = (LPTSTR)malloc(BUFSIZE * sizeof(TCHAR));
+    GetEnvironmentVariable(path.c_str(), sysVar, BUFSIZE);
+	return sysVar;
+}
+
+string sysVar2Path(LPBYTE ImagePath, DWORD lpcbData) {
+	string path(ImagePath, ImagePath + lpcbData);
+	int n = 0;
+	if ((n = path.find("%ProgramFiles%")) != string::npos) {
+		string var = getEnvVar("ProgramFiles");
+		path = path.substr(14).insert(0, var);
+	}
+    if ((n = path.find("%PROGRAMFILES%")) != string::npos) {
+		string var = getEnvVar("PROGRAMFILES");
+		path = path.substr(14).insert(0, var);
+	}
+    if ((n = path.find("%windir%")) != string::npos) {
+		string var = getEnvVar("windir");
+		path = path.substr(8).insert(0, var);
+	}
+    if ((n = path.find("\%SystemRoot%")) != string::npos) {
+		string var = getEnvVar("SystemRoot");
+		path = path.substr(12).insert(0, var);
+	}
+	if ((n = path.find("\%systemroot%")) != string::npos) {
+		string var = getEnvVar("SystemRoot");
+		path = path.substr(12).insert(0, var);
+	}
+    if ((n = path.find("\%USERPROFILE%")) != string::npos) {
+		string var = getEnvVar("USERPROFILE");
+		path = path.substr(13).insert(0, var);
+	}
+	if ((n = path.find("%ProgramData%")) != string::npos) {
+		string var = getEnvVar("ProgramData");
+		path = path.substr(13).insert(0, var);
+	}
+    if ((n = path.find("\\")) == string::npos)
+        path = path.insert(0, "C:\\Windows\\System32\\");
+	//cout << path << endl;
+	return path;
+}
+
 vector<string> getItem(HKEY hKey){
 	TCHAR    achClass[MAX_PATH] = TEXT("");  // buffer for class name 
     DWORD    cSubKeys;               // number of subkeys 
@@ -59,6 +104,19 @@ vector<string> getItem(HKEY hKey){
 	return res;
 }
 
+DWORD getStart(HKEY rootKey, LPCSTR subKey) {
+	DWORD lpType = REG_DWORD;
+	DWORD start;
+	DWORD dwValue;
+	HKEY hKey;
+	unsigned long retCode;
+	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE,&hKey);
+	if (retCode == ERROR_SUCCESS) 
+		retCode = RegQueryValueEx(hKey, "Start", 0, &lpType, (LPBYTE)&start, &dwValue);
+	RegCloseKey(hKey);
+	return start;
+} 
+
 DWORD getType(HKEY rootKey, LPCSTR subKey) {
 	//cout << subKey << endl;
 	DWORD lpType = REG_DWORD;
@@ -98,7 +156,7 @@ LPBYTE getObjectName(HKEY rootKey, LPCSTR subKey) {
 	return ObjectName;
 }
 
-LPBYTE getDescription(HKEY rootKey, LPCSTR subKey) {
+string getDescription(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
 	DWORD lpType = REG_SZ;
@@ -115,14 +173,18 @@ LPBYTE getDescription(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			lpcbData = 4;
 			CString str = "NULL";
 			Description = (LPBYTE)str.GetBuffer(str.GetLength());
 		}
 	}
-	return Description;
+	CString str = "NULL";
+	if (Description == NULL ) Description = (LPBYTE)str.GetBuffer(str.GetLength());
+	string description = sysVar2Path(Description, lpcbData);
+	return description;
 }
 
-LPBYTE getImagePath(HKEY rootKey, LPCSTR subKey) {
+string getImagePath(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
 	DWORD lpType = REG_EXPAND_SZ;
@@ -139,14 +201,22 @@ LPBYTE getImagePath(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			lpcbData = 4;
 			CString str = "NULL";
 			ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
 		}
 	}
-	return ImagePath;
+
+	//change system variable to path
+	CString str = "NULL";
+	if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
+	//cout << ImagePath << " " << lpcbData << endl;
+	string path = sysVar2Path(ImagePath, lpcbData);
+
+	return path;
 }
 
-LPBYTE getDisplayName(HKEY rootKey, LPCSTR subKey) {
+string getDisplayName(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
 	DWORD lpType = REG_SZ;
@@ -163,9 +233,15 @@ LPBYTE getDisplayName(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			lpcbData = 4;
 			CString str = "NULL";
 			DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());
 		}
 	}
-	return DisplayName;
+	CString str = "NULL";
+	if (DisplayName == NULL) DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());
+	//cout << ImagePath << " " << lpcbData << endl;
+	string name = sysVar2Path(DisplayName, lpcbData);
+
+	return name;
 }

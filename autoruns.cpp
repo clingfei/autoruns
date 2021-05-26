@@ -21,7 +21,7 @@ void startup();
 void logon();
 void QueryKey(HKEY hKey);
 void service();
-
+void driver();
 
 vector<string> keys;
 int main() {
@@ -31,9 +31,10 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
 
-    startup();
-    logon();
-	service();
+    //startup();
+    //logon();
+	//service();
+	driver();
 	system("pause");
     
 	return 0;
@@ -189,13 +190,17 @@ void service(){
 	} else {
 		cout  << "RegOpenKeyEx Error!" << endl;
 	}
-	for (int i=0; i<50; ++i) {
+	for (int i = 0; i < items.size(); ++i) {
 		//cout << "value: " << items[i] << endl; 
 		itemKey = "SYSTEM\\CurrentControlSet\\services\\" + items[i];
+		DWORD start = getStart(rootKey, itemKey.c_str());
+		bool autoruns = false;
+		if (start < 3) 
+			autoruns = true;
 		DWORD type = getType(rootKey, itemKey.c_str());
 		
-		LPBYTE ObjectName, ImagePath, Description, DisplayName;
-
+		LPBYTE ObjectName;
+		string Description, DisplayName, ImagePath;
 		// type<=8 is driver, Service otherwise. 
 		if ( type > 8 ) {
 			ObjectName = getObjectName(rootKey, itemKey.c_str());
@@ -204,14 +209,44 @@ void service(){
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
 		
-			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
-			if (Description == NULL) Description = (LPBYTE)str.GetBuffer(str.GetLength());
-			if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
-			if (DisplayName == NULL) DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
 			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
-			//cout << "ObjectName: " << ObjectName << " Desciption: " << Description << endl;
 		}
 	}
 
+}
+
+void driver() {
+	HKEY rootKey = HKEY_LOCAL_MACHINE;
+	LPCSTR subKey = "SYSTEM\\CurrentControlSet\\Services";
+	HKEY hKey;
+	string itemKey;
+	vector<string> items;
+	if (ERROR_SUCCESS == RegOpenKeyEx(rootKey, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
+		items = getItem(hKey);
+	} else {
+		cout << "RegOpenKeyEx Error!" << endl;
+	}
+	for (int i=0; i<50; ++i) {
+		itemKey = "SYSTEM\\CurrentControlSet\\services\\" + items[i];
+		DWORD start = getStart(rootKey, itemKey.c_str());
+		bool autoruns = false;
+		if (start < 3) autoruns = true;
+		DWORD type = getType(rootKey, itemKey.c_str());
+
+		LPBYTE ObjectName;
+		string Description, DisplayName, ImagePath;
+		// type <=8 is driver
+		if (type <= 8) {
+			ObjectName = getObjectName(rootKey, itemKey.c_str());
+			Description = getDescription(rootKey, itemKey.c_str());
+			ImagePath = getImagePath(rootKey, itemKey.c_str());
+			DisplayName = getDisplayName(rootKey, itemKey.c_str());
+			CString str = "NULL";
+
+			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
+			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayName: " << DisplayName << endl; 
+		}
+	}
 }
 
