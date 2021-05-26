@@ -11,6 +11,7 @@
 #include "logon.h"
 #include "startup.h"
 #include "service.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -35,6 +36,9 @@ int main() {
     //logon();
 	//service();
 	driver();
+	//string test = "C:\\Users\\clf\\Desktop\\VSCodeUserSetup-x64-1.56.0.exe";
+	//LPCWSTR path = stringToLpcwstr(test);
+	//getTimeStamp(path);
 	system("pause");
     
 	return 0;
@@ -44,23 +48,31 @@ void startup() {
     LPTSTR sysVar;
     sysVar = (LPTSTR)malloc(BUFSIZE * sizeof(TCHAR));
     GetEnvironmentVariable("USERPROFILE", sysVar, BUFSIZE);
+	string filePath = sysVar;
     strcat(sysVar, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
+	filePath += "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\";
 
     vector<string> files = getFiles(sysVar);
     cout << "User Startup:\n";
 
 	for (int i=0; i<files.size();i++) {
         cout << files[i] << endl;
+		LPCWSTR path = stringToLpcwstr(filePath + files[i]);
+		getTimeStamp(path);
     }
 
     sysVar = (LPSTR)malloc(BUFSIZE * sizeof(TCHAR));
+	filePath = sysVar;
     GetEnvironmentVariable("ProgramData", sysVar, BUFSIZE);
     strcat(sysVar, "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
+	filePath += "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\";
     files = getFiles(sysVar);
     cout << "ProgramStartup:\n";
 
     for (int i=0; i<files.size();i++) {
         cout << files[i] << endl;
+		LPCWSTR path = stringToLpcwstr(filePath + files[i]);
+		getTimeStamp(path);
     }
 }
 
@@ -170,7 +182,11 @@ void QueryKey(HKEY hKey) {
 					image_path = image_path + (char)achData[j];
 				}
 				image_path = subVarWithPath(image_path);
+				image_path = format(image_path);
 				cout << "value: " << image_path << endl;
+				cout << "path: " << image_path << endl;
+				LPCWSTR path = stringToLpcwstr(image_path);
+				getTimeStamp(path);
 				cout << endl;
 			}
 		}
@@ -208,9 +224,14 @@ void service(){
 			ImagePath = getImagePath(rootKey, itemKey.c_str());
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
-		
+			DisplayName = format(DisplayName);
+			ImagePath = format(ImagePath);
+			Description = format(Description);
+
 			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
 			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
+			LPCWSTR path = stringToLpcwstr(ImagePath);
+			getTimeStamp(path);
 		}
 	}
 
@@ -218,34 +239,41 @@ void service(){
 
 void driver() {
 	HKEY rootKey = HKEY_LOCAL_MACHINE;
-	LPCSTR subKey = "SYSTEM\\CurrentControlSet\\Services";
+	LPCSTR subKey  = "SYSTEM\\CurrentControlSet\\Services";
 	HKEY hKey;
 	string itemKey;
 	vector<string> items;
-	if (ERROR_SUCCESS == RegOpenKeyEx(rootKey, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
+	if (ERROR_SUCCESS == RegOpenKeyEx(rootKey, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)){
 		items = getItem(hKey);
 	} else {
-		cout << "RegOpenKeyEx Error!" << endl;
+		cout  << "RegOpenKeyEx Error!" << endl;
 	}
-	for (int i=0; i<50; ++i) {
+	for (int i = 0; i < items.size(); ++i) {
+		//cout << "value: " << items[i] << endl; 
 		itemKey = "SYSTEM\\CurrentControlSet\\services\\" + items[i];
 		DWORD start = getStart(rootKey, itemKey.c_str());
 		bool autoruns = false;
-		if (start < 3) autoruns = true;
+		if (start < 3) 
+			autoruns = true;
 		DWORD type = getType(rootKey, itemKey.c_str());
-
+		
 		LPBYTE ObjectName;
 		string Description, DisplayName, ImagePath;
-		// type <=8 is driver
-		if (type <= 8) {
+		// type<=8 is driver, Service otherwise. 
+		if ( type <=8 ) {
 			ObjectName = getObjectName(rootKey, itemKey.c_str());
 			Description = getDescription(rootKey, itemKey.c_str());
 			ImagePath = getImagePath(rootKey, itemKey.c_str());
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
+			//DisplayName = format(DisplayName);
+			ImagePath = format(ImagePath);
+			//Description = format(Description);
 
-			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
-			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayName: " << DisplayName << endl; 
+			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
+			LPCWSTR path = stringToLpcwstr(ImagePath);
+			getTimeStamp(path);
 		}
 	}
 }
