@@ -7,13 +7,28 @@
 #include <stdio.h>
 #include <typeinfo.h>
 #include <atlstr.h>
+#include <comdef.h>
+#include <taskschd.h>
+#include <initguid.h>
+#include <ole2.h>
+#include <mstask.h>
+#include <msterr.h>
+#include <wchar.h>
+#include <map>
 
-#include "logon.h"
+#include "utils.h"
 #include "startup.h"
 #include "service.h"
-#include "utils.h"
+
+#include "schedTasks.h"
 
 using namespace std;
+
+
+#pragma comment(lib, "version.lib")
+#pragma comment(lib, "Crypt32.lib")
+#pragma comment(lib, "Wintrust.lib")
+#pragma comment(lib, "taskschd.lib")
 
 #define BUFSIZE 100
 #define MAX_VALUE_NAME 16383
@@ -23,6 +38,7 @@ void logon();
 void QueryKey(HKEY hKey);
 void service();
 void driver();
+void schedTasks();
 
 vector<string> keys;
 int main() {
@@ -32,10 +48,11 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
 
-    //startup();
-    //logon();
-	//service();
+    startup();
+    logon();
+	service();
 	driver();
+	schedTasks();
 	//string test = "C:\\Users\\clf\\Desktop\\VSCodeUserSetup-x64-1.56.0.exe";
 	//LPCWSTR path = stringToLpcwstr(test);
 	//getTimeStamp(path);
@@ -182,7 +199,7 @@ void QueryKey(HKEY hKey) {
 					image_path = image_path + (char)achData[j];
 				}
 				image_path = subVarWithPath(image_path);
-				image_path = format(image_path);
+				image_path = Format(image_path);
 				cout << "value: " << image_path << endl;
 				cout << "path: " << image_path << endl;
 				LPCWSTR path = stringToLpcwstr(image_path);
@@ -224,14 +241,17 @@ void service(){
 			ImagePath = getImagePath(rootKey, itemKey.c_str());
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
-			DisplayName = format(DisplayName);
-			ImagePath = format(ImagePath);
-			Description = format(Description);
+			DisplayName = Format(DisplayName);
+			ImagePath = Format(ImagePath);
+			Description = Format(Description);
 
 			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
 			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
 			LPCWSTR path = stringToLpcwstr(ImagePath);
-			getTimeStamp(path);
+			string timestamp = getTimeStamp(path);
+			string publisher = getPublisher(path);
+			cout << "timestamp: " << timestamp << endl;
+			cout << "publisher: " << publisher << endl;
 		}
 	}
 
@@ -266,15 +286,66 @@ void driver() {
 			ImagePath = getImagePath(rootKey, itemKey.c_str());
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
-			//DisplayName = format(DisplayName);
-			ImagePath = format(ImagePath);
-			//Description = format(Description);
+			//DisplayName = Format(DisplayName);
+			ImagePath = Format(ImagePath);
+			//Description = Format(Description);
 
 			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
 			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
 			LPCWSTR path = stringToLpcwstr(ImagePath);
-			getTimeStamp(path);
+			string timestamp = getTimeStamp(path);
+			string publisher = getPublisher(path);
+			cout << "timestamp: " << timestamp << endl;
+			cout << "publisher: " << publisher << endl;
 		}
 	}
 }
 
+void schedTasks() {
+	map<string, string> res; 
+	ITaskService* pTaskService = NULL;
+	ITaskFolder* pTaskFolder = NULL;
+	IRegisteredTaskCollection* pTaskCollection = NULL;
+	BSTR bstrRootFolder = ::SysAllocString(L"\\");
+
+	HRESULT hr = S_OK;
+	ITaskScheduler *pITS;
+
+	hr = ::CoInitialize(NULL);
+	if (!SUCCEEDED(hr)) {
+		cout << "Error occured when initializing COM" << endl;
+		return;
+	}
+	hr = ::CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL);
+	if (!SUCCEEDED(hr)) {
+		cout << "Error occured when initializing security" << endl;
+		return;
+	}
+	
+	CreateTaskServiceInstance(pTaskService);
+	
+	ConnectToTaskService(pTaskService);
+	GetRootTaskFolder(pTaskFolder, pTaskService, bstrRootFolder);
+	EnumerateTasks(pTaskFolder, 0, res);
+
+ 	map<string, string>::iterator iter;
+	iter = res.begin();
+	while (iter != res.end()) {
+		cout << "taskName: " << iter->first << endl;
+		iter->second = subVarWithPath(iter->second);
+		iter->second = Format(iter->second);
+		cout << "taskPath: " << iter->second << endl;
+		string timestamp = getTimeStamp(stringToLpcwstr(iter->second));
+		cout << timestamp << endl;
+		string publisher = getPublisher(stringToLpcwstr(iter->second));
+		cout << "publisher: " << publisher << endl; 
+		iter++;
+	}
+	// Cleanup
+	pTaskFolder->Release();
+	pTaskService->Release();
+	::SysFreeString(bstrRootFolder);
+	::CoUninitialize();
+
+
+}
