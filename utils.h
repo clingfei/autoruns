@@ -13,6 +13,7 @@
 #include <comdef.h>
 #include <taskschd.h>
 
+//#include "service.h"
 
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "Crypt32.lib")
@@ -22,6 +23,7 @@
 using namespace std;
 
 #define BUFSIZE 100
+#define MAX_VALUE_NAME 16383
 
 string getEnvVar(string path) {
     LPTSTR sysVar;
@@ -98,7 +100,8 @@ LPTSTR GetCertificateDescription(PCCERT_CONTEXT pCertCtx)
 
 
 string getTimeStamp(LPCWSTR path) {
-    GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;  //Verify a file or object using the Authenticode policy provider.
+    //GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    GUID guidAction = WINTRUST_ACTION_GENERIC_CHAIN_VERIFY;  //Verify a file or object using the Authenticode policy provider.
     WINTRUST_FILE_INFO sWintrustFileInfo;           //reference:https://docs.microsoft.com/en-us/windows/win32/api/wintrust/ns-wintrust-wintrust_file_info
     WINTRUST_DATA sWintrustData;                    //reference:
     LONG hr;
@@ -110,6 +113,8 @@ string getTimeStamp(LPCWSTR path) {
     sWintrustFileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
     sWintrustFileInfo.pcwszFilePath = path;
     sWintrustFileInfo.hFile = NULL;
+    sWintrustFileInfo.pgKnownSubject = NULL;
+
 
     sWintrustData.cbStruct = sizeof(WINTRUST_DATA);
     sWintrustData.dwUIChoice = WTD_UI_NONE;    //display no user interface
@@ -120,7 +125,7 @@ string getTimeStamp(LPCWSTR path) {
     
     if (Wow64DisableWow64FsRedirection(&OldValue))
         hr = WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
-        Wow64RevertWow64FsRedirection(OldValue);
+        //Wow64RevertWow64FsRedirection(OldValue);
 
     // reference: https://docs.microsoft.com/en-us/windows/win32/api/wintrust/nf-wintrust-winverifytrust
     if (hr == TRUST_E_SUBJECT_NOT_TRUSTED) {
@@ -177,8 +182,10 @@ string getTimeStamp(LPCWSTR path) {
                     //    << " " << sysTime.wYear << " " << sysTime.wHour << " " << sysTime.wMinute << " " << sysTime.wSecond << endl;
                     sprintf(timestamp, ("%.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,
                              sysTime.wYear, sysTime.wHour, sysTime.wMinute, sysTime.wSecond);
-                    //cout << "timestampe: " << timestamp << endl;
+                    cout << "timestampe: " << timestamp;
 					string res(timestamp, strlen(timestamp));
+                    sWintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
+                    WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
                     return res;
                 }
             }
@@ -217,7 +224,7 @@ string Format(string str) {
 }
 
 string getPublisher(LPCWSTR path) {
-    GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;  //Verify a file or object using the Authenticode policy provider.
+    GUID guidAction = WINTRUST_ACTION_GENERIC_CHAIN_VERIFY;  //Verify certificate chains created from any object type. A callback is provided to implement the final chain policy by using the chain context for each signer and counter signer.
     WINTRUST_FILE_INFO sWintrustFileInfo;           //reference:https://docs.microsoft.com/en-us/windows/win32/api/wintrust/ns-wintrust-wintrust_file_info
     WINTRUST_DATA sWintrustData;                    //reference:
     LONG hr;
@@ -281,20 +288,33 @@ string getPublisher(LPCWSTR path) {
 
                 psProvCert = WTHelperGetProvCertFromChain(psProvSigner, 0);
                 if (psProvCert) {
-                    LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
+                    LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert); 
                     if (szCertDesc) {
-                        //cout << "File signer = " << szCertDesc << endl;
+                        //cout << "File signer = " << szCertDesc << endl; 
                         //LocalFree(szCertDesc);
                         string res = szCertDesc;
                         LocalFree(szCertDesc);
-                        int i = res.find("CN=");
+                        //cout << "Publisher: " << res << endl;
+                        int i = res.find("CN=\"");
                         string result;
+                        if (res.find("CN=\"") != string::npos) {
+                            for (int j=i+4; j<res.size(); j++) {
+                                if (res[j] == '\"')
+                                    break;
+                                result.push_back(res[j]);
+                            }
+                            cout << "Publisher: " << result << endl;
+                            return result;
+                        }
+                        i = res.find("CN=");
                         for (int j=i+3; j<res.size(); j++) {
                             if (res[j] == ',') 
                                 break;
                             result.push_back(res[j]);
                         }
-                        return result;
+                        cout << "Publisher: " << result << endl;
+                        
+                        return res;
                     }
                 }  
             }
@@ -304,3 +324,234 @@ string getPublisher(LPCWSTR path) {
 }
 
 
+// reference : https://docs.microsoft.com/en-us/windows/win32/sysinfo/enumerating-registry-subkeys
+
+void QueryLogon(HKEY hKey, string msg, string subKey) {
+	TCHAR    achClass[MAX_PATH] = TEXT("");  // buffer for class name 
+    DWORD    cchClassName = MAX_PATH;  // size of class string 
+    DWORD    cSubKeys = 0;               // number of subkeys 
+    DWORD    cbMaxSubKey;              // longest subkey size 
+    DWORD    cchMaxClass;              // longest class string 
+    DWORD    cValues;              // number of values for key 
+    DWORD    cchMaxValue;          // longest value name 
+    DWORD    cbMaxValueData;       // longest value data 
+    DWORD    cbSecurityDescriptor; // size of security descriptor 
+    FILETIME ftLastWriteTime;      // last write time 
+
+	DWORD i, retCode;
+	HKEY rootKey = HKEY_CURRENT_USER;
+
+	TCHAR achValue[MAX_VALUE_NAME];
+	BYTE achData[MAX_VALUE_NAME];
+	DWORD cchValue = MAX_VALUE_NAME;
+	DWORD cchData = MAX_VALUE_NAME;
+	DWORD type;
+
+	    // Get the class name and the value count. 
+    retCode = RegQueryInfoKey(
+        hKey,                    // key handle 
+        achClass,                // buffer for class name 
+        &cchClassName,           // size of class string 
+        NULL,                    // reserved 
+        &cSubKeys,               // number of subkeys 
+        &cbMaxSubKey,            // longest subkey size 
+        &cchMaxClass,            // longest class string 
+        &cValues,                // number of values for this key 
+        &cchMaxValue,            // longest value name 
+        &cbMaxValueData,         // longest value data 
+        &cbSecurityDescriptor,   // security descriptor 
+        &ftLastWriteTime);       // last write time 
+
+	if (cValues) {
+		cout << msg << endl;
+
+		/*
+		LSTATUS RegEnumValueA(
+  HKEY    hKey,
+  DWORD   dwIndex,
+  LPSTR   lpValueName,
+  LPDWORD lpcchValueName,
+  LPDWORD lpReserved,
+  LPDWORD lpType,
+  LPBYTE  lpData,
+  LPDWORD lpcbData
+);
+		*/
+		//cout << "number of values: " << cValues << endl;
+		for (int i=0, retCode = ERROR_SUCCESS; i<cValues; i++) {
+			cchValue = MAX_VALUE_NAME;
+			cchData = MAX_VALUE_NAME;
+			achValue[0] = '\0';
+			achData[0] = '\0';
+			retCode = RegEnumValue(hKey, i,
+				achValue,
+				&cchValue,
+				NULL,
+				&type,
+				achData,
+				&cchData);
+
+			if (retCode == ERROR_SUCCESS) {
+				unsigned long j;
+			
+				cout << "Name: " << achValue << endl;
+				subKey = subKey + "\\" + achValue;
+				string image_path = "";
+				if (msg[4] == 'M')
+					rootKey = HKEY_LOCAL_MACHINE;
+
+				for (j = 0; j<cchData; j++) {
+					image_path = image_path + (char)achData[j];
+				}
+				image_path = subVarWithPath(image_path);
+				image_path = Format(image_path);
+				//cout << "value: " << image_path << endl;
+				cout << "ImagePath: " << image_path << endl;
+				LPCWSTR path = stringToLpcwstr(image_path);
+				getTimeStamp(path);
+				getPublisher(path);
+				cout << endl;
+			}
+		}
+	}
+}
+
+void QueryKeys(HKEY hKey) {
+	TCHAR    achClass[MAX_PATH] = TEXT("");  // buffer for class name 
+    DWORD    cchClassName = MAX_PATH;  // size of class string 
+    DWORD    cSubKeys = 0;               // number of subkeys 
+    DWORD    cbMaxSubKey;              // longest subkey size 
+    DWORD    cchMaxClass;              // longest class string 
+    DWORD    cValues;              // number of values for key 
+    DWORD    cchMaxValue;          // longest value name 
+    DWORD    cbMaxValueData;       // longest value data 
+    DWORD    cbSecurityDescriptor; // size of security descriptor 
+    FILETIME ftLastWriteTime;      // last write time 
+
+	DWORD i, retCode;
+	HKEY rootKey = HKEY_LOCAL_MACHINE;
+
+	TCHAR achValue[MAX_VALUE_NAME];
+	BYTE achData[MAX_VALUE_NAME];
+	DWORD cchValue = MAX_VALUE_NAME;
+	DWORD cchData = MAX_VALUE_NAME;
+	DWORD type;
+
+    retCode = RegQueryInfoKey(
+        hKey,                    // key handle 
+        achClass,                // buffer for class name 
+        &cchClassName,           // size of class string 
+        NULL,                    // reserved 
+        &cSubKeys,               // number of subkeys 
+        &cbMaxSubKey,            // longest subkey size 
+        &cchMaxClass,            // longest class string 
+        &cValues,                // number of values for this key 
+        &cchMaxValue,            // longest value name 
+        &cbMaxValueData,         // longest value data 
+        &cbSecurityDescriptor,   // security descriptor 
+        &ftLastWriteTime);       // last write time 
+
+	if (cValues) {
+		for (int i=0, retCode = ERROR_SUCCESS; i<cValues; i++) {
+			cchValue = MAX_VALUE_NAME;
+			cchData = MAX_VALUE_NAME;
+			achValue[0] = '\0';
+			achData[0] = '\0';
+			retCode = RegEnumValue(hKey, i,
+				achValue,
+				&cchValue,
+				NULL,
+				&type,
+				achData,
+				&cchData);
+
+			if (retCode == ERROR_SUCCESS) {
+				unsigned long j;
+			
+				cout << "Name: " << achValue << endl;
+				string image_path = "";
+
+				for (j = 0; j<cchData; j++) {
+                    //cout << (char)achData[j] << endl;
+					image_path = image_path + (char)achData[j];
+				}
+				image_path = subVarWithPath(image_path);
+				image_path = Format(image_path);
+                cout << image_path.size() << endl;
+				cout << "ImagePath: " << image_path << endl;
+				LPCWSTR path = stringToLpcwstr(image_path);
+				cout << endl;
+			}
+		}
+	}
+}
+
+void QueryImageHijacks(HKEY hKey) {
+	TCHAR    achClass[MAX_PATH] = TEXT("");  // buffer for class name 
+    DWORD    cchClassName = MAX_PATH;  // size of class string 
+    DWORD    cSubKeys = 0;               // number of subkeys 
+    DWORD    cbMaxSubKey;              // longest subkey size 
+    DWORD    cchMaxClass;              // longest class string 
+    DWORD    cValues;              // number of values for key 
+    DWORD    cchMaxValue;          // longest value name 
+    DWORD    cbMaxValueData;       // longest value data 
+    DWORD    cbSecurityDescriptor; // size of security descriptor 
+    FILETIME ftLastWriteTime;      // last write time 
+
+	DWORD i, retCode;
+	HKEY rootKey = HKEY_LOCAL_MACHINE;
+
+	TCHAR achValue[MAX_VALUE_NAME];
+	BYTE achData[MAX_VALUE_NAME];
+	DWORD cchValue = MAX_VALUE_NAME;
+	DWORD cchData = MAX_VALUE_NAME;
+	DWORD type;
+
+    retCode = RegQueryInfoKey(
+        hKey,                    // key handle 
+        achClass,                // buffer for class name 
+        &cchClassName,           // size of class string 
+        NULL,                    // reserved 
+        &cSubKeys,               // number of subkeys 
+        &cbMaxSubKey,            // longest subkey size 
+        &cchMaxClass,            // longest class string 
+        &cValues,                // number of values for this key 
+        &cchMaxValue,            // longest value name 
+        &cbMaxValueData,         // longest value data 
+        &cbSecurityDescriptor,   // security descriptor 
+        &ftLastWriteTime);       // last write time 
+
+	if (cValues) {
+		for (int i=0, retCode = ERROR_SUCCESS; i<cValues; i++) {
+			cchValue = MAX_VALUE_NAME;
+			cchData = MAX_VALUE_NAME;
+			achValue[0] = '\0';
+			achData[0] = '\0';
+			retCode = RegEnumValue(hKey, i,
+				achValue,
+				&cchValue,
+				NULL,
+				&type,
+				achData,
+				&cchData);
+
+			if (retCode == ERROR_SUCCESS) {
+				unsigned long j;
+			
+				cout << "Name: " << achValue << endl;
+				string image_path = "";
+
+				for (j = 0; j<cchData; j++) {
+                    //cout << (char)achData[j] << endl;
+					image_path = image_path + (char)achData[j];
+				}
+				image_path = subVarWithPath(image_path);
+				image_path = Format(image_path);
+                //cout << image_path.size() << endl;
+				cout << "ImagePath: " << image_path.substr(0, 20) + achValue << endl;
+				LPCWSTR path = stringToLpcwstr(image_path);
+				cout << endl;
+			}
+		}
+	}
+}

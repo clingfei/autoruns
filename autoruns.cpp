@@ -21,6 +21,7 @@
 #include "service.h"
 
 #include "schedTasks.h"
+//#include "ImageHijacks.h"
 
 using namespace std;
 
@@ -35,10 +36,13 @@ using namespace std;
 
 void startup();
 void logon();
-void QueryKey(HKEY hKey);
+//void QueryKey(HKEY hKey, string msg, string subKey);
 void service();
 void driver();
 void schedTasks();
+void KnownDlls();
+//void QueryKnownDlls(HKEY hKey);
+void ImageHijacks();
 
 vector<string> keys;
 int main() {
@@ -48,11 +52,13 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
 
-    startup();
-    logon();
-	service();
-	driver();
-	schedTasks();
+    //startup();
+    //logon();
+	//service();
+	//driver();
+	//schedTasks();
+	//KnownDlls();
+	ImageHijacks();
 	//string test = "C:\\Users\\clf\\Desktop\\VSCodeUserSetup-x64-1.56.0.exe";
 	//LPCWSTR path = stringToLpcwstr(test);
 	//getTimeStamp(path);
@@ -73,33 +79,55 @@ void startup() {
     cout << "User Startup:\n";
 
 	for (int i=0; i<files.size();i++) {
-        cout << files[i] << endl;
+        cout << "Name: " << files[i] << endl;
+		cout << "ImagePath: " << filePath+files[i] << endl;
 		LPCWSTR path = stringToLpcwstr(filePath + files[i]);
-		getTimeStamp(path);
+		
+		string timeStamp = getTimeStamp(path);
+		if (timeStamp.size() > 0)
+		cout << "TimeStamp: " << timeStamp << endl;
+		string publisher = getPublisher(path);
+		if (publisher.size() > 0)
+		cout << "Publisher: " << publisher << endl;
     }
 
     sysVar = (LPSTR)malloc(BUFSIZE * sizeof(TCHAR));
-	filePath = sysVar;
     GetEnvironmentVariable("ProgramData", sysVar, BUFSIZE);
+	filePath = "";
+	filePath = sysVar;
     strcat(sysVar, "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*");
 	filePath += "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\";
-    files = getFiles(sysVar);
-    cout << "ProgramStartup:\n";
+	files.clear();
+	files = getFiles(sysVar);
+    cout << "\nProgramStartup:\n";
 
     for (int i=0; i<files.size();i++) {
-        cout << files[i] << endl;
+        cout << "Name: " << files[i] << endl;
+		cout << "ImagePath: " << (filePath + files[i]) << endl;
 		LPCWSTR path = stringToLpcwstr(filePath + files[i]);
-		getTimeStamp(path);
+
+		string timeStamp = getTimeStamp(path);
+		if (timeStamp.size() > 0)
+		cout << "TimeStamp: " << timeStamp << endl;
+		string publisher = getPublisher(path);
+		if (publisher.size() > 0)
+		cout << "Publisher: " << publisher << endl;
     }
+	//HKEY hKey;
+	//if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders\\Startup"), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+	//	QueryKey(hKey); 
+	//if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders\\Common Startup"), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+	//	QueryKey(hKey);
+	//cout << getDescription(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders\\Startup\\calc.exe"));
 }
 
 void logon() {
     HKEY hKey;
-	cout << "CurrentUser: " << endl;
+	//cout << "CurrentUser: " << endl;
 	for (int i=0; i<keys.size(); i++) {
-		cout << "subkeys:" << keys[i] << endl;
+		//cout << "\nHKCU\\" << keys[i] << endl;
 		if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_CURRENT_USER, _T(keys[i].c_str()), 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
-			QueryKey(hKey);
+			QueryLogon(hKey, "\nHKCU\\" + keys[i], keys[i]);
 		}
 		//else {
 		//	cout <<  RegOpenKeyEx(HKEY_CURRENT_USER, keys[i].c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
@@ -108,11 +136,11 @@ void logon() {
 			RegCloseKey(hKey);
 		}
 	}
-	cout << "\nLocal Machine:" << endl;
+	
 	for (int i=0; i<keys.size(); i++) {
-		cout << "subkeys:" << keys[i] << endl;
+		//cout << "\nHKLM\\" << keys[i] << endl;
 		if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T(keys[i].c_str()), 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
-			QueryKey(hKey);
+			QueryLogon(hKey, "\nHKLM\\"+keys[i], keys[i]);
 		}
 		//else {
 		//	cout <<  RegOpenKeyEx(HKEY_LOCAL_MACHINE, keys[i].c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
@@ -122,95 +150,6 @@ void logon() {
 		}
 	}
 }
-
-// reference : https://docs.microsoft.com/en-us/windows/win32/sysinfo/enumerating-registry-subkeys
-
-void QueryKey(HKEY hKey) {
-	TCHAR    achClass[MAX_PATH] = TEXT("");  // buffer for class name 
-    DWORD    cchClassName = MAX_PATH;  // size of class string 
-    DWORD    cSubKeys = 0;               // number of subkeys 
-    DWORD    cbMaxSubKey;              // longest subkey size 
-    DWORD    cchMaxClass;              // longest class string 
-    DWORD    cValues;              // number of values for key 
-    DWORD    cchMaxValue;          // longest value name 
-    DWORD    cbMaxValueData;       // longest value data 
-    DWORD    cbSecurityDescriptor; // size of security descriptor 
-    FILETIME ftLastWriteTime;      // last write time 
-
-	DWORD i, retCode;
-
-	TCHAR achValue[MAX_VALUE_NAME];
-	BYTE achData[MAX_VALUE_NAME];
-	DWORD cchValue = MAX_VALUE_NAME;
-	DWORD cchData = MAX_VALUE_NAME;
-	DWORD type;
-
-	    // Get the class name and the value count. 
-    retCode = RegQueryInfoKey(
-        hKey,                    // key handle 
-        achClass,                // buffer for class name 
-        &cchClassName,           // size of class string 
-        NULL,                    // reserved 
-        &cSubKeys,               // number of subkeys 
-        &cbMaxSubKey,            // longest subkey size 
-        &cchMaxClass,            // longest class string 
-        &cValues,                // number of values for this key 
-        &cchMaxValue,            // longest value name 
-        &cbMaxValueData,         // longest value data 
-        &cbSecurityDescriptor,   // security descriptor 
-        &ftLastWriteTime);       // last write time 
-
-	if (cValues) {
-
-		/*
-		LSTATUS RegEnumValueA(
-  HKEY    hKey,
-  DWORD   dwIndex,
-  LPSTR   lpValueName,
-  LPDWORD lpcchValueName,
-  LPDWORD lpReserved,
-  LPDWORD lpType,
-  LPBYTE  lpData,
-  LPDWORD lpcbData
-);
-		*/
-		cout << "number of values: " << cValues << endl;
-		for (int i=0, retCode = ERROR_SUCCESS; i<cValues; i++) {
-			cchValue = MAX_VALUE_NAME;
-			cchData = MAX_VALUE_NAME;
-			achValue[0] = '\0';
-			achData[0] = '\0';
-			retCode = RegEnumValue(hKey, i,
-				achValue,
-				&cchValue,
-				NULL,
-				&type,
-				achData,
-				&cchData);
-
-			if (retCode == ERROR_SUCCESS) {
-				unsigned long j;
-			
-				cout << "key:" << achValue << endl;
-
-				string image_path = "";
-
-				for (j = 0; j<cchData; j++) {
-					image_path = image_path + (char)achData[j];
-				}
-				image_path = subVarWithPath(image_path);
-				image_path = Format(image_path);
-				cout << "value: " << image_path << endl;
-				cout << "path: " << image_path << endl;
-				LPCWSTR path = stringToLpcwstr(image_path);
-				getTimeStamp(path);
-				cout << endl;
-			}
-		}
-	}
-
-}
-
 
 void service(){
 	HKEY rootKey = HKEY_LOCAL_MACHINE;
@@ -245,13 +184,18 @@ void service(){
 			ImagePath = Format(ImagePath);
 			Description = Format(Description);
 
-			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
-			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
+			if (ObjectName == NULL) {
+				if ((Description=="NULL") && (ImagePath=="NULL") && (DisplayName == "NULL"))
+					continue;
+ 				ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			}
+			cout << endl;
+			cout << "ObjectName: " << ObjectName << "\nDescription: " << Description << "\nImagePath: " << ImagePath << "\nDisplayNmae: " << DisplayName << endl;  
 			LPCWSTR path = stringToLpcwstr(ImagePath);
 			string timestamp = getTimeStamp(path);
 			string publisher = getPublisher(path);
-			cout << "timestamp: " << timestamp << endl;
-			cout << "publisher: " << publisher << endl;
+			//cout << "timestamp: " << timestamp << endl;
+			//cout << "publisher: " << publisher << endl;
 		}
 	}
 
@@ -280,23 +224,29 @@ void driver() {
 		LPBYTE ObjectName;
 		string Description, DisplayName, ImagePath;
 		// type<=8 is driver, Service otherwise. 
-		if ( type <=8 ) {
+		if ( type <= 8 ) {
 			ObjectName = getObjectName(rootKey, itemKey.c_str());
 			Description = getDescription(rootKey, itemKey.c_str());
 			ImagePath = getImagePath(rootKey, itemKey.c_str());
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
-			//DisplayName = Format(DisplayName);
+			ImagePath = driverVar2Path(ImagePath);
+			DisplayName = Format(DisplayName);
 			ImagePath = Format(ImagePath);
-			//Description = Format(Description);
+			Description = Format(Description);
 
-			if (ObjectName == NULL) ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
-			cout << "ObjectName: " << ObjectName << "\tDescription: " << Description << "\tImagePath: " << ImagePath << "\tDisplayNmae: " << DisplayName << endl;  
+			if (ObjectName == NULL) {
+				if ((Description=="NULL") && (ImagePath=="NULL") && (DisplayName == "NULL"))
+					continue;
+ 				ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
+			}
+			cout << endl;
+			cout << "ObjectName: " << ObjectName << "\nDescription: " << Description << "\nImagePath: " << ImagePath << "\nDisplayNmae: " << DisplayName << endl;  
 			LPCWSTR path = stringToLpcwstr(ImagePath);
 			string timestamp = getTimeStamp(path);
 			string publisher = getPublisher(path);
-			cout << "timestamp: " << timestamp << endl;
-			cout << "publisher: " << publisher << endl;
+			//cout << "timestamp: " << timestamp << endl;
+			//cout << "publisher: " << publisher << endl;
 		}
 	}
 }
@@ -336,10 +286,11 @@ void schedTasks() {
 		iter->second = Format(iter->second);
 		cout << "taskPath: " << iter->second << endl;
 		string timestamp = getTimeStamp(stringToLpcwstr(iter->second));
-		cout << timestamp << endl;
+		//cout << "TimeStamp: " << timestamp << endl;
 		string publisher = getPublisher(stringToLpcwstr(iter->second));
-		cout << "publisher: " << publisher << endl; 
+		//cout << "publisher: " << publisher << endl; 
 		iter++;
+		cout << endl;
 	}
 	// Cleanup
 	pTaskFolder->Release();
@@ -348,4 +299,44 @@ void schedTasks() {
 	::CoUninitialize();
 
 
+}
+
+void KnownDlls() {
+	HKEY hKey = HKEY_LOCAL_MACHINE;
+
+	LPCSTR subKey = "System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls";
+	if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey)) {
+		QueryKeys(hKey);
+	}
+	else cout << "error." << endl;
+}
+
+void ImageHijacks() {
+	HKEY hKey = HKEY_LOCAL_MACHINE;
+	DWORD retCode;
+	vector<string> items;
+	LPCSTR subKey = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
+	string itemKey;
+	retCode = RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+	if (ERROR_SUCCESS == retCode) {
+		items = getItem(hKey);
+		//cout << items.size();
+		for(int i=0; i<items.size(); ++i) {
+			//strcat(subKey, items[i].c_str());
+			itemKey = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\" + items[i];
+			retCode = RegOpenKeyEx(HKEY_LOCAL_MACHINE, itemKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+		//	cout << itemKey.c_str() << endl;
+			if (retCode == ERROR_SUCCESS) {
+				QueryImageHijacks(hKey);
+			}
+			else cout << retCode << endl;
+		}
+			
+	} 
+	//else cout << retCode << endl; 
+	subKey = "SOFTWARE\\Classes\\htmlfile\\shell\\open\\command";
+	retCode = RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+	if (ERROR_SUCCESS == retCode) 
+		QueryKeys(hKey);
+	else cout << retCode << endl;
 }

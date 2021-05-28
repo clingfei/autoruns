@@ -7,7 +7,46 @@ string getSysVar(string path) {
     GetEnvironmentVariable(path.c_str(), sysVar, BUFSIZE);
 	return sysVar;
 }
+string driverVar2Path(string path) {
+	//string path(ImagePath, ImagePath + lpcbData);
+	int n = 0;
 
+
+    if ((n = path.find("windir")) != string::npos) {
+		string var = getEnvVar("windir");
+		path = path.substr(8).insert(0, var);
+	}
+    if ((n = path.find("SystemRoot")) != string::npos) {
+		string var = getEnvVar("SystemRoot");
+		path = path.substr(10).insert(0, var);
+	}
+	if ((n = path.find("systemroot")) != string::npos) {
+		string var = getEnvVar("SystemRoot");
+		path = path.substr(10).insert(0, var);
+	}
+	if ((n = path.find("Systemroot")) != string::npos) {
+		string var = getEnvVar("SystemRoot");
+		path = path.substr(10).insert(0, var);
+	}
+    if ((n = path.find("USERPROFILE")) != string::npos) {
+		string var = getEnvVar("USERPROFILE");
+		path = path.substr(13).insert(0, var);
+	}
+	if ((n = path.find("ProgramData")) != string::npos && n<=3) {
+		string var = getEnvVar("ProgramData");
+		path = path.substr(13).insert(0, var);
+	}
+	if ((n = path.find("system32")) != string::npos  && n<=3 ) {
+		path = path.insert(0, "C:\\Windows\\");
+	}
+	if ((n = path.find("System32")) != string::npos  && n<=3) {
+		path = path.insert(0, "C:\\Windows\\");}
+//	}
+//    if ((n = path.find("\\")) == string::npos)
+//        path = path.insert(0, "C:\\Windows\\System32\\");
+	//cout << path << endl;
+	return path;
+}
 string sysVar2Path(LPBYTE ImagePath, DWORD lpcbData) {
 	string path(ImagePath, ImagePath + lpcbData);
 	int n = 0;
@@ -147,6 +186,7 @@ LPBYTE getObjectName(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			return NULL;
 			CString str = "NULL";
 			ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());
 		}
@@ -171,6 +211,7 @@ string getDescription(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			return "NULL";
 			lpcbData = 4;
 			CString str = "NULL";
 			Description = (LPBYTE)str.GetBuffer(str.GetLength());
@@ -199,12 +240,13 @@ string getImagePath(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			return "NULL";
 			lpcbData = 4;
 			CString str = "NULL";
 			ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
 		}
 	}
-
+	//cout << ImagePath << endl;
 	//change system variable to path
 	CString str = "NULL";
 	if (ImagePath == NULL) ImagePath = (LPBYTE)str.GetBuffer(str.GetLength());
@@ -231,6 +273,7 @@ string getDisplayName(HKEY rootKey, LPCSTR subKey) {
 			RegCloseKey(hKey);
 		}
 		else {
+			return "NULL";
 			lpcbData = 4;
 			CString str = "NULL";
 			DisplayName = (LPBYTE)str.GetBuffer(str.GetLength());
