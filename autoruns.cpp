@@ -21,7 +21,6 @@
 #include "service.h"
 
 #include "schedTasks.h"
-//#include "ImageHijacks.h"
 
 using namespace std;
 
@@ -36,13 +35,12 @@ using namespace std;
 
 void startup();
 void logon();
-//void QueryKey(HKEY hKey, string msg, string subKey);
 void service();
 void driver();
 void schedTasks();
 void KnownDlls();
-//void QueryKnownDlls(HKEY hKey);
 void ImageHijacks();
+void WinLogon() ;
 
 vector<string> keys;
 int main() {
@@ -52,16 +50,13 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
 
-    //startup();
-    //logon();
-	//service();
-	//driver();
-	//schedTasks();
-	//KnownDlls();
+    startup();
+    logon();
+	service();
+	driver();
+	schedTasks();
+	KnownDlls();
 	ImageHijacks();
-	//string test = "C:\\Users\\clf\\Desktop\\VSCodeUserSetup-x64-1.56.0.exe";
-	//LPCWSTR path = stringToLpcwstr(test);
-	//getTimeStamp(path);
 	system("pause");
     
 	return 0;
@@ -340,3 +335,5 @@ void ImageHijacks() {
 		QueryKeys(hKey);
 	else cout << retCode << endl;
 }
+
+

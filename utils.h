@@ -477,7 +477,7 @@ void QueryKeys(HKEY hKey) {
 				}
 				image_path = subVarWithPath(image_path);
 				image_path = Format(image_path);
-                cout << image_path.size() << endl;
+                //cout << image_path.size() << endl;
 				cout << "ImagePath: " << image_path << endl;
 				LPCWSTR path = stringToLpcwstr(image_path);
 				cout << endl;
