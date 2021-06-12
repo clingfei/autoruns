@@ -127,7 +127,7 @@ void EnumerateTasks(ITaskFolder*& pTaskFolder, DWORD indent, map<string, string>
 				::SysFreeString(bstrTaskName);
 		}
 		else {
-			::wprintf(L"[-] Error while retriving task %d\n", i + 1);
+			::wprintf(L"Error while retriving task %d\n", i + 1);
 		}
 	}
 

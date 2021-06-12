@@ -40,7 +40,6 @@ void driver();
 void schedTasks();
 void KnownDlls();
 void ImageHijacks();
-void WinLogon() ;
 
 vector<string> keys;
 int main() {
@@ -49,14 +48,40 @@ int main() {
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce");
 	keys.push_back("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx");
 	keys.push_back("SOFTWARE\\Microsoft\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run");
-
-    startup();
-    logon();
-	service();
-	driver();
-	schedTasks();
-	KnownDlls();
-	ImageHijacks();
+	string flag;
+	cout << "Please input what you want to check: logon, service, driver, task, dll, image, or input exit to exit" << endl; 
+	while(true) {
+		cin >> flag;
+		if (flag == "logon") {
+			startup();
+			logon();
+		}	
+		else if (flag == "service") {
+			service();
+		}
+		else if (flag == "driver") {
+			driver();
+		}
+		else if (flag == "task") {
+			schedTasks();
+		}
+		else if (flag == "dll") {
+			KnownDlls();
+		}
+		else if (flag == "image") {
+			ImageHijacks();
+		}
+		else {
+			break;
+		}
+ 	}
+    //startup();
+    //logon();
+	//service();
+	//driver();
+	//schedTasks();
+	//KnownDlls();
+	//ImageHijacks();
 	system("pause");
     
 	return 0;
@@ -176,7 +201,7 @@ void service(){
 			DisplayName = getDisplayName(rootKey, itemKey.c_str());
 			CString str = "NULL";
 			DisplayName = Format(DisplayName);
-			ImagePath = Format(ImagePath);
+			//ImagePath = Format(ImagePath);
 			Description = Format(Description);
 
 			if (ObjectName == NULL) {
@@ -184,8 +209,28 @@ void service(){
 					continue;
  				ObjectName = (LPBYTE)str.GetBuffer(str.GetLength());	
 			}
-			cout << endl;
-			cout << "ObjectName: " << ObjectName << "\nDescription: " << Description << "\nImagePath: " << ImagePath << "\nDisplayNmae: " << DisplayName << endl;  
+			int n;
+			if ((n = ImagePath.find("svchost.exe")) != string::npos) {
+				HKEY svcKey;
+				string svcPath = itemKey + "\\Parameters";
+				cout << endl;
+				cout << "ObjectName: " << ObjectName << "\nDescription: " << Description << "\nImagePath: " << ImagePath << "\nDisplayName: " << DisplayName << endl;  
+				string ParameterPath = GetSvchost(rootKey, svcPath.c_str());
+				if (ParameterPath != "") {
+					//cout << ParameterPath << endl;
+					cout << "Parameter: " << ParameterPath << endl;
+					ParameterPath = Format(ParameterPath);
+					LPCWSTR path = stringToLpcwstr(ParameterPath);
+					string timestamp = getTimeStamp(path);
+					string publisher = getPublisher(path);
+					continue;
+				}
+			}
+			else {
+				cout << endl;
+				cout << "ObjectName: " << ObjectName << "\nDescription: " << Description << "\nImagePath: " << ImagePath << "\nDisplayName: " << DisplayName << endl;  
+			}
+			ImagePath = Format(ImagePath);
 			LPCWSTR path = stringToLpcwstr(ImagePath);
 			string timestamp = getTimeStamp(path);
 			string publisher = getPublisher(path);

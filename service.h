@@ -223,6 +223,26 @@ string getDescription(HKEY rootKey, LPCSTR subKey) {
 	return description;
 }
 
+string GetSvchost(HKEY rootKey, LPCSTR subKey) {
+	HKEY hKey;
+	DWORD lpcbData = 1024;
+	DWORD lpType = REG_EXPAND_SZ;
+	LPBYTE ParameterPath = NULL;
+	unsigned long retCode;
+
+	retCode = RegOpenKeyEx(rootKey, subKey, 0, KEY_QUERY_VALUE, &hKey);
+	if (retCode == ERROR_SUCCESS) {
+		ParameterPath = (LPBYTE)malloc(lpcbData);
+		retCode = RegQueryValueEx(hKey, "ServiceDll", 0, &lpType, ParameterPath, &lpcbData);
+		if (retCode == ERROR_SUCCESS) {
+			RegCloseKey(hKey);
+			string path = sysVar2Path(ParameterPath, lpcbData);
+			return path.substr(0, path.size()-1);
+		}
+	}
+	return "";
+}
+
 string getImagePath(HKEY rootKey, LPCSTR subKey) {
 	HKEY hKey;
 	DWORD lpcbData = 1024;
